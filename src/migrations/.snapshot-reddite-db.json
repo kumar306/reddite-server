@@ -32,7 +32,6 @@
           "primary": false,
           "nullable": false,
           "length": 0,
-          "default": "now",
           "mappedType": "datetime"
         },
         "updated_at": {
@@ -43,7 +42,6 @@
           "primary": false,
           "nullable": false,
           "length": 0,
-          "default": "now",
           "mappedType": "datetime"
         }
       },
