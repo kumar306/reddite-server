@@ -6,6 +6,7 @@ import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/PostResolver";
+import { UserResolver } from "./resolvers/UserResolver";
 
 const main = async() => {
     //db init
@@ -18,7 +19,7 @@ const main = async() => {
     //apollo server init - provide schema to the server by providing resolvers using buildSchema
     const apolloServer = new ApolloServer({
         schema: await buildSchema({
-            resolvers: [PostResolver],
+            resolvers: [PostResolver, UserResolver],
             validate: false,
         }),
         context: () => ({ em: orm.em })
