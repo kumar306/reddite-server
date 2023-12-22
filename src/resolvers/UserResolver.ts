@@ -58,7 +58,14 @@ export class UserResolver {
     //whatever is being mentioned in query, mutation decorator - that object can be queried
     @Query(() => UserResponse)
     async getUserDetails(@Arg("username") username: string,
-    @Ctx() {em}:myContext): Promise<UserResponse> {
+    @Ctx() {em, req }:myContext): Promise<UserResponse> {
+        if(!req.session.userId) return {
+            errors: [{field:'user',message:'the user is not logged in'}]
+        } 
+        //if user is logged in, his req will have cookie containing encrypted session ID
+        // on req, express session middleware unsigns that cookie and searches in redis store for that key
+        //val of that key would be session details containing user session data we stored before
+        //so req.session would contain that data, req.sessionID would give me the same init session ID of that user
         const user = await em.fork().findOne(User, {username});
         return { user };
     }
@@ -96,10 +103,10 @@ export class UserResolver {
         } 
 
     // login - provide username, password
-    @Mutation(() => User)
+    @Mutation(() => UserResponse)
     async login(
         @Arg("options") options: LoginInput,
-        @Ctx() {em}:myContext
+        @Ctx() {em, req, res }:myContext
     ): Promise<UserResponse> {
         const emFork = em.fork();
         const existingUser = await emFork.findOne(User, { username: options.username});
@@ -110,7 +117,12 @@ export class UserResolver {
         if(!pwdMatches) return {
             errors: [{ field: 'password', message: 'Incorrect password' }]
         };
-        
+
+        req.session.userId = existingUser.id;
         return { user: existingUser }
     }   
 }
+
+// store user id to the session
+
+// user logs in -> his {userId: <userId>} object -> its stored in redis session and signed -> 
