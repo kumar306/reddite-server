@@ -117,7 +117,7 @@ export class UserResolver {
         if(!pwdMatches) return {
             errors: [{ field: 'password', message: 'Incorrect password' }]
         };
-
+        console.log('Session ID: ' + req.sessionID);
         req.session.userId = existingUser.id;
         return { user: existingUser }
     }   

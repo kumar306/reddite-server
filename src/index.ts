@@ -27,9 +27,11 @@ const main = async() => {
         prefix: "reddite-server:", //with this prefix it is stored in redis
       })
 
-     app.set('trust proxy', !__prod__); 
+     
+    // ------------- FOR ACCESSING VIA SANDBOX PROXY ------------------------
+     //  app.set('trust proxy', !__prod__); 
      // for graphql v4 - https://apollosandbox is proxy by which gql works 
-     // http:localhost:3000 (client) -> https (sandbox) [PROXY] -> http//localhost:4000/graphql (apollo server)
+     // SANDBOX PROXY (client) -> http//localhost:4000/graphql (apollo server)
      // set x-forwarded-proto to https on sandbox so apollo server sets cookie to sandbox, changes propagated to client
      // works
 
@@ -39,9 +41,10 @@ const main = async() => {
         secret: 'pvnixmalfuen23vjwe', //this is used to sign cookie sent in response and to unsign in request. it will be signing value read from 'cookie-id' property
         cookie: {
             httpOnly: true,
-            sameSite: "none",
+            sameSite: "lax", // if sending from sandbox (diff URL), set sameSite as "none" else set to "lax"
             maxAge: 1000 * 60 * 60 * 24 * 365 * 10, //10 years is expiry
-            secure: true, //secure:true to set cookie on https sandbox proxy -gql v4
+            secure: false //secure: false for localhost 3000 to localhost 4000 (same site, http connection)
+            // secure: true, //secure:true to set cookie on https sandbox proxy -gql v4
         },
         saveUninitialized: false,
         resave: false
@@ -58,8 +61,8 @@ const main = async() => {
     await apolloServer.start();
     apolloServer.applyMiddleware({ 
         app,
-        cors: { credentials: true, origin: "https://studio.apollographql.com" },
-        // setting cors headers - this is required to send cookies back to sandbox proxy
+        cors: { credentials: true, origin: ["https://studio.apollographql.com", "http://localhost:3000"] },
+        // setting cors headers - this is required to send cookies back to sandbox proxy, localhost
     });
 
     app.listen(4000, () => {
