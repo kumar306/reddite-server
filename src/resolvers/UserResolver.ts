@@ -2,6 +2,7 @@ import { argon2d, hash, verify } from "argon2";
 import { myContext } from "../context";
 import { User } from "../entities/User";
 import { Arg, Args, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { COOKIE_ALIAS } from "../constants";
 
 @InputType()
 class RegisterInput {
@@ -54,11 +55,20 @@ class UserResponse {
 @Resolver()
 export class UserResolver {
 
-    //query user details - username, first name, last name
+    //query user details of a particular user - username, first name, last name
     //whatever is being mentioned in query, mutation decorator - that object can be queried
     @Query(() => UserResponse)
     async getUserDetails(@Arg("username") username: string,
     @Ctx() {em, req }:myContext): Promise<UserResponse> {
+        const user = await em.fork().findOne(User, {username});
+        return { user };
+    }
+
+    //query if user is logged in by checking req.session of cookie sent by the browser
+    @Query(() => UserResponse)
+    async isLoggedIn(
+    @Ctx() {em, req }:myContext): Promise<UserResponse> {
+        console.log(req.session);
         if(!req.session.userId) return {
             errors: [{field:'user',message:'the user is not logged in'}]
         } 
@@ -66,7 +76,7 @@ export class UserResolver {
         // on req, express session middleware unsigns that cookie and searches in redis store for that key
         //val of that key would be session details containing user session data we stored before
         //so req.session would contain that data, req.sessionID would give me the same init session ID of that user
-        const user = await em.fork().findOne(User, {username});
+        const user = await em.fork().findOne(User, {id:req.session.userId});
         return { user };
     }
 
@@ -121,8 +131,25 @@ export class UserResolver {
         req.session.userId = existingUser.id;
         return { user: existingUser }
     }   
+
+    @Mutation(() => Boolean)
+    logout(
+        @Ctx() { em, req, res }: myContext
+    ): Promise<Boolean> {
+        return new Promise((myResolve,_) => {
+            res.clearCookie(COOKIE_ALIAS);
+            req.session.destroy(err => {
+                console.log(err);
+                myResolve(false);
+            })
+            myResolve(true);
+        })
+    }
+
 }
 
-// store user id to the session
 
+
+
+// store user id to the session
 // user logs in -> his {userId: <userId>} object -> its stored in redis session and signed -> 
