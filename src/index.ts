@@ -10,6 +10,10 @@ import { UserResolver } from "./resolvers/UserResolver";
 import { createClient } from "redis";
 import session from "express-session";
 import RedisStore from "connect-redis";
+import { User } from "./entities/User";
+import { sendMail } from "./utils/sendEmail";
+import path from 'path';
+import 'dotenv/config';
 
 const main = async() => {
     //db init
@@ -56,7 +60,7 @@ const main = async() => {
             resolvers: [PostResolver, UserResolver],
             validate: false,
         }),
-        context: ({req, res}) => ({ em: orm.em, req, res }),
+        context: ({req, res}) => ({ em: orm.em, redis:redisClient, req, res }),
     })
     await apolloServer.start();
     apolloServer.applyMiddleware({ 

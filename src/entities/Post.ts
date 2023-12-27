@@ -17,7 +17,7 @@ export class Post {
     @Field(() => String)
     createdAt: Date = new Date();
 
-    @Property({ onUpdate: () => { new Date() }})
+    @Property({ onUpdate: () => new Date() })
     @Field(() => String)
     updatedAt: Date = new Date();
 }

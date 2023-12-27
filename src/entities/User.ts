@@ -1,4 +1,4 @@
-import { Entity, PrimaryKey, Property } from "@mikro-orm/core";
+import { BeforeUpdate, Entity, PrimaryKey, Property } from "@mikro-orm/core";
 import { Field, Int, ObjectType } from "type-graphql";
 
 @ObjectType()
@@ -12,6 +12,10 @@ export class User {
     @Property({ type: 'text', unique: true })
     @Field(() => String)
     username!: string;
+
+    @Property({ type: 'text', unique: true})
+    @Field(() => String)
+    email!: string;
 
     @Property({ type: 'text' })
     password!: string;
@@ -28,9 +32,15 @@ export class User {
     @Field(() => String)
     createdAt: Date = new Date();
 
-    @Property({ onUpdate: () => { new Date() }})
+    @Property()
     @Field(() => String)
     updatedAt: Date = new Date();
-}
 
-//post entity which is the main crucial table
+    @BeforeUpdate()
+    beforeUpdate() {
+        // Check if there's a hook modifying updatedAt
+        console.log('Before Update Hook');
+        console.log('password: '+this.password);
+        console.log('Updated at: '+this.updatedAt);
+    }
+}

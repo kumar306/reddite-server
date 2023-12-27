@@ -1,4 +1,5 @@
 import { EntityManager, IDatabaseDriver, Connection } from "@mikro-orm/core";
+import { RedisClientType } from "@redis/client";
 import { Request, Response } from "express";
 
 interface CustomRequestProperties {
@@ -8,5 +9,6 @@ interface CustomRequestProperties {
 export type myContext = {
     em: EntityManager<IDatabaseDriver<Connection>>,
     req: Request & CustomRequestProperties,
-    res: Response
+    res: Response,
+    redis: RedisClientType
 };
