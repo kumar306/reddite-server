@@ -1,7 +1,5 @@
 import "reflect-metadata";
-import { MikroORM } from "@mikro-orm/core";
 import { __prod__ } from "./constants";
-import mikroConfig from "./mikro-orm.config";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
@@ -10,16 +8,12 @@ import { UserResolver } from "./resolvers/UserResolver";
 import { createClient } from "redis";
 import session from "express-session";
 import RedisStore from "connect-redis";
-import { User } from "./entities/User";
-import { sendMail } from "./utils/sendEmail";
-import path from 'path';
 import 'dotenv/config';
+import { ORMConfig } from "./data-source";
 
 const main = async() => {
-    //db init
-    const orm = await MikroORM.init(mikroConfig);
-    await orm.getMigrator().up();
-
+     //db init
+     await ORMConfig.initialize();
      //express server init
      const app = express();
 
@@ -60,7 +54,7 @@ const main = async() => {
             resolvers: [PostResolver, UserResolver],
             validate: false,
         }),
-        context: ({req, res}) => ({ em: orm.em, redis:redisClient, req, res }),
+        context: ({req, res}) => ({ redis:redisClient, req, res }),
     })
     await apolloServer.start();
     apolloServer.applyMiddleware({ 

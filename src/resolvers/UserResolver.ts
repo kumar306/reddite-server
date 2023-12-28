@@ -4,8 +4,9 @@ import { User } from "../entities/User";
 import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
 import { COOKIE_ALIAS, FORGOT_PASSWORD_PREFIX } from "../constants";
 import { UserResponse, RegisterInput, LoginInput, validateFields, PasswordResetInput } from "../utils/userValidation";
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { sendMail } from "./../utils/sendEmail";
+import { ORMConfig } from "../data-source";
 
 @Resolver()
 export class UserResolver {
@@ -14,15 +15,15 @@ export class UserResolver {
     //whatever is being mentioned in query, mutation decorator - that object can be queried
     @Query(() => UserResponse)
     async getUserDetails(@Arg("username") username: string,
-        @Ctx() { em, req }: myContext): Promise<UserResponse> {
-        const user = await em.fork().findOne(User, { username });
+        @Ctx() { req }: myContext): Promise<UserResponse> {
+        const user = await ORMConfig.manager.findOne(User, {where: {username}});
         return { user };
     }
 
     //query if user is logged in by checking req.session of cookie sent by the browser
     @Query(() => UserResponse)
     async isLoggedIn(
-        @Ctx() { em, req }: myContext): Promise<UserResponse> {
+        @Ctx() { req }: myContext): Promise<UserResponse> {
         console.log(req.session);
         if (!req.session.userId) return {
             errors: [{ field: 'user', message: 'the user is not logged in' }]
@@ -31,37 +32,36 @@ export class UserResolver {
         // on req, express session middleware unsigns that cookie and searches in redis store for that key
         //val of that key would be session details containing user session data we stored before
         //so req.session would contain that data, req.sessionID would give me the same init session ID of that user
-        const user = await em.fork().findOne(User, { id: req.session.userId });
+       
+        const user = await ORMConfig.manager.findOne(User, {where: {id: req.session.userId}});
         return { user };
     }
 
     // register - provide first name, last name, username, password, confirm password
     @Mutation(() => UserResponse)
     async register(
-        @Arg("options") options: RegisterInput,
-        @Ctx() { em }: myContext): Promise<UserResponse> {
-        //create em fork to use
-        const emFork = em.fork();
+        @Arg("options") options: RegisterInput): Promise<UserResponse> {
+
         //if pwd, confirm pwd dont match return err msg
         const errors = validateFields(options);
         if(errors) return { errors }
 
         // if user exists return err msg
-        const existingUser: User = await emFork.findOne(User, { username: options.username });
+        const existingUser:User = await ORMConfig.manager.findOne(User, {where: {username: options.username}});
         if (existingUser) return {
             errors: [{ field: 'username', message: 'User with username already exists' }]
         };
 
         options.password = await hash(options.password);
      
-        const user = emFork.create(User, {
+        const user = await ORMConfig.manager.create(User, {
             username: options.username,
             password: options.password,
             email: options.email,
             fname: options.fname,
             lname: options.lname
-        });
-        await emFork.persistAndFlush(user);
+        }).save();
+        
         return { user };
     }
 
@@ -69,14 +69,13 @@ export class UserResolver {
     @Mutation(() => UserResponse)
     async login(
         @Arg("options") options: LoginInput,
-        @Ctx() { em, req, res }: myContext
+        @Ctx() { req, res }: myContext
     ): Promise<UserResponse> {
-        const emFork = em.fork();
         let existingUser;
         if (options.usernameOrEmail.includes('@'))
-            existingUser = await emFork.findOne(User, { email: options.usernameOrEmail });
+            existingUser = await ORMConfig.manager.findOne(User, {where: {email: options.usernameOrEmail}});
         else
-            existingUser = await emFork.findOne(User, { username: options.usernameOrEmail });
+            existingUser = await ORMConfig.manager.findOne(User, {where: {username: options.usernameOrEmail}});
 
         if (!existingUser) return {
             errors: [{ field: 'usernameOrEmail', message: 'User doesn\'t exist' }]
@@ -91,7 +90,7 @@ export class UserResolver {
 
     @Mutation(() => Boolean)
     logout(
-        @Ctx() { em, req, res }: myContext
+        @Ctx() { req, res }: myContext
     ): Promise<Boolean> {
         return new Promise((myResolve, _) => {
             res.clearCookie(COOKIE_ALIAS);
@@ -105,7 +104,7 @@ export class UserResolver {
 
     @Mutation(() => Boolean)
     async forgotPassword(
-        @Ctx() { em, redis }: myContext,
+        @Ctx() { redis }: myContext,
         @Arg('email') email: string
     ): Promise<Boolean> {
 
@@ -117,7 +116,7 @@ export class UserResolver {
             // store in redis and attach to the fetched user's id
             // send user a email with link as http://localhost:3000/change-password/{uuid}
         
-        const user = await em.fork().findOne(User, {email: email});
+        const user = await ORMConfig.manager.findOne(User, {where: {email}})
         if(!user) return true;
         let token = uuidv4();
         console.log("Generated token: "+ token);
@@ -129,7 +128,7 @@ export class UserResolver {
 
     @Mutation(() => UserResponse)
     async changePassword(
-        @Ctx() { em, redis }: myContext,
+        @Ctx() { redis }: myContext,
         @Arg('options') options: PasswordResetInput
     ): Promise<UserResponse> {
         
@@ -141,7 +140,6 @@ export class UserResolver {
             // store hashed password into user
             // delete token from redis
       
-        const emFork = em.fork();
         const userId:string = await redis.get(FORGOT_PASSWORD_PREFIX+options.token);
         console.log(userId);
         if(!userId) return {
@@ -158,10 +156,10 @@ export class UserResolver {
                 }]
             }
         }
-        const user = await emFork.findOne(User, {id: parseInt(userId) });
+        const user = await ORMConfig.manager.findOne(User, {where: { id: parseInt(userId) }});
         user.password = await hash(options.newPassword);
         user.updatedAt = new Date();
-        await emFork.flush();
+        await user.save();
         await redis.del(FORGOT_PASSWORD_PREFIX+options.token); 
         return { user }
     }

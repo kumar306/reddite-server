@@ -1,6 +1,5 @@
-import { argon2d } from "argon2";
 import { User } from "../entities/User";
-import { Args, Field, InputType, ObjectType } from "type-graphql";
+import { Field, InputType, ObjectType } from "type-graphql";
 
 @ObjectType()
 export class FieldError {

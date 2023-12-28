@@ -1,46 +1,42 @@
-import { BeforeUpdate, Entity, PrimaryKey, Property } from "@mikro-orm/core";
+
 import { Field, Int, ObjectType } from "type-graphql";
+import { BaseEntity, Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Post } from "./Post";
 
 @ObjectType()
 @Entity()
-export class User {
+export class User extends BaseEntity {
 
-    @PrimaryKey()
+    @PrimaryGeneratedColumn()
     @Field(() => Int)
     id!: number;
 
-    @Property({ type: 'text', unique: true })
+    @Column({ unique: true })
     @Field(() => String)
     username!: string;
 
-    @Property({ type: 'text', unique: true})
+    @Column({ unique: true})
     @Field(() => String)
     email!: string;
 
-    @Property({ type: 'text' })
+    @Column({ type: 'text' })
     password!: string;
 
-    @Property({ type: 'text' })
+
+    @Column({ type: 'text' })
     @Field(() => String)
     fname!: string;
 
-    @Property({ type: 'text' })
+    @Column({ type: 'text' })
     @Field(() => String)
     lname!: string;
 
-    @Property()
+    @CreateDateColumn()
     @Field(() => String)
-    createdAt: Date = new Date();
+    createdAt: Date;
 
-    @Property()
+    @UpdateDateColumn()
     @Field(() => String)
-    updatedAt: Date = new Date();
+    updatedAt: Date;
 
-    @BeforeUpdate()
-    beforeUpdate() {
-        // Check if there's a hook modifying updatedAt
-        console.log('Before Update Hook');
-        console.log('password: '+this.password);
-        console.log('Updated at: '+this.updatedAt);
-    }
 }
