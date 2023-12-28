@@ -1,7 +1,10 @@
 import { myContext } from "../context";
 import { Post } from "../entities/Post";
-import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Mutation, Query, Resolver, UseMiddleware } from "type-graphql";
 import { ORMConfig } from "../data-source";
+import { UpdateResult } from "typeorm";
+import { PostInput } from "../utils/postInput";
+import { isAuth } from "../utils/isAuthMiddleware";
 
 @Resolver()
 export class PostResolver {
@@ -20,8 +23,23 @@ export class PostResolver {
     
     //create post
     @Mutation(() => Post)
-    async createPost(@Arg("title") title: string):Promise<Post> {
-        return ORMConfig.manager.create(Post, {title}).save();
+    @UseMiddleware(isAuth) //middleware to check if user is auth before executing the resolver fn
+    async createPost(
+        @Arg("input") input: PostInput,
+        @Ctx() { req }: myContext
+        ):Promise<Post> {
+
+        // should attach post with user by his user id
+        const response = await ORMConfig.createQueryBuilder()
+                        .insert()
+                        .into(Post)
+                        .returning(['title','text','author'])
+                        .values({
+                            ...input, 
+                            author: req.session.userId})
+                        .execute();    
+            
+        return response.raw[0] as Post;
     }
 
     //update post - update by id, change title field
@@ -36,14 +54,17 @@ export class PostResolver {
         // update using active record method
         // --------------------------------
         // post.title = title;
-        // return post.save();
+        // return post.save(); // returns Promise<Post>
 
         // update using query builder of typeORM 
         // --------------------------------
-        await ORMConfig.createQueryBuilder().update(Post).set({title}).where("id = :id", {id}).execute();
-        // returns Promise<UpdateResult>
-
-        return post;
+        const response = await ORMConfig.createQueryBuilder()
+                                .update(Post)
+                                .set({title})
+                                .where("id = :id", {id})
+                                .returning(['id','title','text','author'])
+                                .execute();
+        return response.raw[0] as Post;
     }
 
     //delete post

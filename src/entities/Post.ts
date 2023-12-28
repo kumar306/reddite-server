@@ -18,6 +18,13 @@ export class Post extends BaseEntity {
     @Field(() => String)
     text: string;
 
+    @ManyToOne(() => User, (user) => user.posts)
+    author: number;
+
+    @Column()
+    @Field(() => Int)
+    points: number;
+
     @CreateDateColumn()
     @Field(() => String)
     createdAt: Date;
