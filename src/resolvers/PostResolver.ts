@@ -5,14 +5,21 @@ import { ORMConfig } from "../data-source";
 import { UpdateResult } from "typeorm";
 import { PostInput } from "../utils/postInput";
 import { isAuth } from "../utils/isAuthMiddleware";
+import { User } from "../entities/User";
 
 @Resolver()
 export class PostResolver {
 
     //GET all posts
     @Query(() => [Post])
-    getAllPosts():Promise<Post[]> {
-        return ORMConfig.manager.find(Post, {});
+    async getAllPosts(
+        @Ctx() { req }: myContext
+    ):Promise<Post[]> {
+        return ORMConfig.getRepository(Post).createQueryBuilder("post")
+                                     .leftJoinAndSelect("post.author", "author").getMany();
+            // createQueryBuilder param - alias for Entity for which we called getRepository method
+            // author - 2nd param - alias
+            // 1st param - has to be property name on which relation decorator kept
     }
 
     //get a specific post
@@ -29,17 +36,28 @@ export class PostResolver {
         @Ctx() { req }: myContext
         ):Promise<Post> {
 
-        // should attach post with user by his user id
-        const response = await ORMConfig.createQueryBuilder()
+        // should attach post with user by his user id - insert a record into post table
+        //then add user - session.userId using relation() of createQueryBuilder using created post id
+        const post = (await ORMConfig.createQueryBuilder()
                         .insert()
                         .into(Post)
-                        .returning(['title','text','author'])
-                        .values({
-                            ...input, 
-                            author: req.session.userId})
-                        .execute();    
-            
-        return response.raw[0] as Post;
+                        .returning(['title','text','author','points'])
+                        .values({...input})
+                        .execute()).raw[0];
+
+        await ORMConfig.createQueryBuilder()
+                       .relation(Post,"author")
+                       .of(post.id)
+                       .set(req.session.userId); //update query - connecting user to post by authorId field
+        
+        post.author = await ORMConfig.createQueryBuilder()
+                                     .relation(Post,"author")
+                                     .of(post.id)
+                                     .loadOne();
+          
+        console.log(post);
+
+        return post;
     }
 
     //update post - update by id, change title field
