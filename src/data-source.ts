@@ -2,7 +2,6 @@ import { DataSource } from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
 import path from "path";
-
 export const ORMConfig = new DataSource({
     type: "postgres",
     host: "localhost",
