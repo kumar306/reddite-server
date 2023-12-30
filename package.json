@@ -4,7 +4,7 @@
   "scripts": {
     "watch": "tsc -w",
     "start": "nodemon dist/index.js",
-    "create-migration": "mikro-orm migration:create"
+    "typeorm": "typeorm-ts-node-esm"
   },
   "main": "index.js",
   "license": "MIT",
