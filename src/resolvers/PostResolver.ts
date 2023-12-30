@@ -3,7 +3,7 @@ import { Post } from "../entities/Post";
 import { Arg, Ctx, Mutation, Query, Resolver, UseMiddleware } from "type-graphql";
 import { ORMConfig } from "../data-source";
 import { UpdateResult } from "typeorm";
-import { PostInput } from "../utils/postInput";
+import { PaginationInput, PostInput } from "../utils/postInput";
 import { isAuth } from "../utils/isAuthMiddleware";
 import { User } from "../entities/User";
 
@@ -13,13 +13,22 @@ export class PostResolver {
     //GET all posts
     @Query(() => [Post])
     async getAllPosts(
-        @Ctx() { req }: myContext
+        @Ctx() { req }: myContext,
+        @Arg("options") options: PaginationInput
     ):Promise<Post[]> {
-        return ORMConfig.getRepository(Post).createQueryBuilder("post")
-                                     .leftJoinAndSelect("post.author", "author").getMany();
+        return ORMConfig.getRepository(Post)
+                        .createQueryBuilder("post")
+                        .leftJoinAndSelect("post.author", "author")
+                        .orderBy("post.createdAt", "DESC")
+                        .take(options.limit)
+                        .skip(options.skip)
+                        .getMany();
+
             // createQueryBuilder param - alias for Entity for which we called getRepository method
             // author - 2nd param - alias
             // 1st param - has to be property name on which relation decorator kept
+            // take - for pagination limit 'limit' rows retrieved
+            // skip - similar to offset - for pagination
     }
 
     //get a specific post

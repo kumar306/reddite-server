@@ -1,4 +1,4 @@
-import { InputType, Field } from "type-graphql";
+import { InputType, Field, Int } from "type-graphql";
 
 @InputType()
 export class PostInput {
@@ -8,4 +8,14 @@ export class PostInput {
 
     @Field(() => String)
     text!: string;
+}
+
+@InputType()
+export class PaginationInput {
+
+    @Field(() => Int)
+    limit!: number;
+
+    @Field(() => Int)
+    skip!: number;
 }
