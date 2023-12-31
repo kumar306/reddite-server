@@ -14,6 +14,6 @@ export const ORMConfig = new DataSource({
     entities: [Post, User],
     subscribers: [],
     migrations: [
-        path.join(__dirname,"migrations","1703914551204-dataInsert.ts")
+        path.join(__dirname,"migrations","1703997944384-dataInsert.ts")
     ],
 })

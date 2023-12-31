@@ -1,34 +1,50 @@
 import { myContext } from "../context";
 import { Post } from "../entities/Post";
-import { Arg, Ctx, Mutation, Query, Resolver, UseMiddleware } from "type-graphql";
+import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { ORMConfig } from "../data-source";
 import { UpdateResult } from "typeorm";
-import { PaginationInput, PostInput } from "../utils/postInput";
+import { PaginationInput, PostInput, PostsOutput } from "../utils/postInput";
 import { isAuth } from "../utils/isAuthMiddleware";
 import { User } from "../entities/User";
 
-@Resolver()
+@Resolver(Post)
 export class PostResolver {
 
+    //return a slice of text of post rather than entire text 
+    // to reduce network payload when getting page posts
+    @FieldResolver(() => String)
+    textSlice(@Root() root: Post) {
+        return root.text.slice(0,50);
+    }
+
     //GET all posts
-    @Query(() => [Post])
+    @Query(() => PostsOutput)
     async getAllPosts(
         @Ctx() { req }: myContext,
         @Arg("options") options: PaginationInput
-    ):Promise<Post[]> {
-        return ORMConfig.getRepository(Post)
+    ):Promise<PostsOutput> {
+
+        let posts:Post[] = await ORMConfig.getRepository(Post)
                         .createQueryBuilder("post")
                         .leftJoinAndSelect("post.author", "author")
                         .orderBy("post.createdAt", "DESC")
-                        .take(options.limit)
+                        .take(options.limit+1)
                         .skip(options.skip)
                         .getMany();
 
-            // createQueryBuilder param - alias for Entity for which we called getRepository method
-            // author - 2nd param - alias
-            // 1st param - has to be property name on which relation decorator kept
-            // take - for pagination limit 'limit' rows retrieved
-            // skip - similar to offset - for pagination
+        // createQueryBuilder param - alias for Entity for which we called getRepository method
+        // author - 2nd param - alias
+        // 1st param - has to be property name on which relation decorator kept
+        // take - for pagination limit 'limit' rows retrieved
+        // skip - similar to offset - for pagination
+
+        let hasMore:boolean;
+        if(posts.length == options.limit+1) {
+            hasMore = true;
+            posts = posts.slice(0,options.limit);
+        } 
+        else hasMore = false;
+        return { posts, hasMore }
     }
 
     //get a specific post

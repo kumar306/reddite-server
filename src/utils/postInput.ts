@@ -1,4 +1,5 @@
-import { InputType, Field, Int } from "type-graphql";
+import { Post } from "../entities/Post";
+import { InputType, Field, Int, ObjectType } from "type-graphql";
 
 @InputType()
 export class PostInput {
@@ -18,4 +19,14 @@ export class PaginationInput {
 
     @Field(() => Int)
     skip!: number;
+}
+
+@ObjectType()
+export class PostsOutput {
+    
+    @Field(() => [Post])
+    posts?: Post[];
+
+    @Field(() => Boolean)
+    hasMore: boolean;
 }
