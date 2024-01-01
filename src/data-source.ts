@@ -2,6 +2,7 @@ import { DataSource } from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
 import path from "path";
+import { Vote } from "./entities/Vote";
 export const ORMConfig = new DataSource({
     type: "postgres",
     host: "localhost",
@@ -11,7 +12,7 @@ export const ORMConfig = new DataSource({
     database: "reddite-db",
     synchronize: true, //to make sure orm driver always synced with db at all times - disable in prod
     logging: true,
-    entities: [Post, User],
+    entities: [Post, User, Vote],
     subscribers: [],
     migrations: [
         path.join(__dirname,"migrations","1703997944384-dataInsert.ts")

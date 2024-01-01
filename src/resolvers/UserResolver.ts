@@ -1,14 +1,14 @@
 import { hash, verify } from "argon2";
 import { myContext } from "../context";
 import { User } from "../entities/User";
-import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from "type-graphql";
 import { COOKIE_ALIAS, FORGOT_PASSWORD_PREFIX } from "../constants";
 import { UserResponse, RegisterInput, LoginInput, validateFields, PasswordResetInput } from "../utils/userValidation";
 import { v4 as uuidv4 } from 'uuid';
 import { sendMail } from "./../utils/sendEmail";
 import { ORMConfig } from "../data-source";
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
 
     //query user details of a particular user - username, first name, last name
@@ -18,6 +18,12 @@ export class UserResolver {
         @Ctx() { req }: myContext): Promise<UserResponse> {
         const user = await ORMConfig.manager.findOne(User, {where: {username}});
         return { user };
+    }
+
+    @FieldResolver(() => String)
+    email(@Root() root:User, @Ctx() {req}: myContext) {
+        if(req.session.userId == root.id) return root.email;
+        else return "";
     }
 
     //query if user is logged in by checking req.session of cookie sent by the browser
