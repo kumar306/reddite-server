@@ -10,6 +10,7 @@ import session from "express-session";
 import RedisStore from "connect-redis";
 import 'dotenv/config';
 import { ORMConfig } from "./data-source";
+import { VoteResolver } from "./resolvers/VoteResolver";
 
 const main = async() => {
      //db init
@@ -51,7 +52,7 @@ const main = async() => {
     //apollo server init - provide schema to the server by providing resolvers using buildSchema
     const apolloServer = new ApolloServer({
         schema: await buildSchema({
-            resolvers: [PostResolver, UserResolver],
+            resolvers: [PostResolver, UserResolver, VoteResolver],
             validate: false,
         }),
         context: ({req, res}) => ({ redis:redisClient, req, res }),

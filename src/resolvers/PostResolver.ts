@@ -27,11 +27,11 @@ export class PostResolver {
         let posts:Post[] = await ORMConfig.getRepository(Post)
                         .createQueryBuilder("post")
                         .leftJoinAndSelect("post.author", "author")
-                        .orderBy("post.createdAt", "DESC")
+                        .orderBy("post.id", "DESC")
                         .take(options.limit+1)
                         .skip(options.skip)
                         .getMany();
-
+   
         // createQueryBuilder param - alias for Entity for which we called getRepository method
         // author - 2nd param - alias
         // 1st param - has to be property name on which relation decorator kept

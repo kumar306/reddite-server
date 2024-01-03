@@ -38,35 +38,31 @@ export class VoteResolver {
                                       })
                                       .returning(['vote'])
                                       .execute()).raw[0];
-            
+            console.log(initVoteInsert);
+
             await transactionalEntityManager.createQueryBuilder()
                            .relation(Vote,"user")
                            .of(initVoteInsert.id)
-                           .add(req.session.userId);
+                           .set(req.session.userId);
 
             await transactionalEntityManager.createQueryBuilder()
                             .relation(Vote,"post")
                             .of(initVoteInsert.id)
-                            .add(input.postId);
+                            .set(input.postId);
 
             // update the post points
             
             if(input.vote == 1)
                 await transactionalEntityManager.createQueryBuilder().update(Post).set({
                     points: () => "points+1"
-                }).execute();   
+                }).where("id = :postId", {postId:input.postId}).execute();   
             else 
                 await transactionalEntityManager.createQueryBuilder().update(Post).set({
                     points: () => "points-1"
-                }).execute();  
-
-            // const retrievedPost = await transactionalEntityManager.findOne(Post, {where: {id: input.postId}});
-            // if(input.vote == 1) retrievedPost.points+=1;
-            // else retrievedPost.points -=1;
-            // await retrievedPost.save();
-            
-            return true;
+                }).where("id = :postId", {postId:input.postId}).execute();  
+     
         })
         
+        return true;
     }
 }
