@@ -1,9 +1,10 @@
 import { ObjectType } from "type-graphql";
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import { User } from "./User";
 import { Post } from "./Post";
 
 @Entity()
+@Unique(["user","post"])
 export class Vote {
 
     @PrimaryGeneratedColumn()

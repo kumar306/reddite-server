@@ -1,7 +1,7 @@
 import { ORMConfig } from "../data-source";
 import { myContext } from "../context";
 import { Vote } from "../entities/Vote";
-import { Arg, Ctx, Field, InputType, Int, Mutation, Resolver, UseMiddleware } from "type-graphql";
+import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, Resolver, Root, UseMiddleware } from "type-graphql";
 import { Post } from "../entities/Post";
 import { isAuth } from "../utils/isAuthMiddleware";
 import { User } from "../entities/User";
@@ -16,7 +16,7 @@ export class VoteInput {
     vote: number;
 }
 
-@Resolver()
+@Resolver(Vote)
 export class VoteResolver {
 
     @Mutation(() => Boolean)
@@ -25,44 +25,108 @@ export class VoteResolver {
         @Arg('input') input: VoteInput, 
         @Ctx() {req}: myContext
     ) {
-        // postgres transaction when user clicks upvote/downvote
-        // add record in vote table (userId, postId, value (1 or -1)) - for upvote, downvote
-        // update points for post for postId
 
-        await ORMConfig.transaction(async (transactionalEntityManager) => {
-            const initVoteInsert:Vote = (await transactionalEntityManager.createQueryBuilder()
-                                      .insert()
-                                      .into(Vote)
-                                      .values({
-                                        vote: input.vote
-                                      })
-                                      .returning(['vote'])
-                                      .execute()).raw[0];
-            console.log(initVoteInsert);
+        // search for userId, postID combo
+            // if not there -> vote for first time -> add to vote table and update the points (normal increment/decrement)
+            // if there -> means i am voting on the post again
+            // value -> +1 or -1
+            // if value is same as my input value -> do nothing
+            // if value is different as input value 
+                // increment/decrement post points
+                // edge case: if post points turns 0 after increment/decrement, do it again
 
-            await transactionalEntityManager.createQueryBuilder()
-                           .relation(Vote,"user")
-                           .of(initVoteInsert.id)
-                           .set(req.session.userId);
-
-            await transactionalEntityManager.createQueryBuilder()
-                            .relation(Vote,"post")
-                            .of(initVoteInsert.id)
-                            .set(input.postId);
-
-            // update the post points
-            
-            if(input.vote == 1)
-                await transactionalEntityManager.createQueryBuilder().update(Post).set({
-                    points: () => "points+1"
-                }).where("id = :postId", {postId:input.postId}).execute();   
-            else 
-                await transactionalEntityManager.createQueryBuilder().update(Post).set({
-                    points: () => "points-1"
-                }).where("id = :postId", {postId:input.postId}).execute();  
-     
-        })
+        const existingVote:Vote = await ORMConfig.getRepository(Vote).createQueryBuilder("vote")
+                                     .where("vote.postId = :postId and vote.userId = :userId",
+                                     {postId: input.postId, userId: req.session.userId}).getOne();
         
-        return true;
-    }
+        
+        if(existingVote == null) {
+            await ORMConfig.transaction(async (transactionalEntityManager) => {
+                const initVoteInsert:Vote = (await transactionalEntityManager.createQueryBuilder()
+                                          .insert()
+                                          .into(Vote)
+                                          .values({
+                                            vote: input.vote
+                                          })
+                                          .returning(['vote'])
+                                          .execute()).raw[0];
+    
+                await transactionalEntityManager.createQueryBuilder()
+                               .relation(Vote,"user")
+                               .of(initVoteInsert.id)
+                               .set(req.session.userId);
+    
+                await transactionalEntityManager.createQueryBuilder()
+                                .relation(Vote,"post")
+                                .of(initVoteInsert.id)
+                                .set(input.postId);
+    
+                // update the post points
+                
+                if(input.vote == 1)
+                    await transactionalEntityManager.createQueryBuilder().update(Post).set({
+                        points: () => "points+1"
+                    }).where("id = :postId", {postId:input.postId}).execute();   
+                else 
+                    await transactionalEntityManager.createQueryBuilder().update(Post).set({
+                        points: () => "points-1"
+                    }).where("id = :postId", {postId:input.postId}).execute();  
+         
+            })
+        
+            return true;
+        }
+        else {
+            if(existingVote.vote == input.vote) return false;
+            else {
+                
+                await ORMConfig.transaction( async (tm) => {
+                    await tm.createQueryBuilder()
+                               .update(Vote)
+                               .set({ vote: input.vote })
+                               .where("id = :id", {id:existingVote.id})
+                               .execute();
+                
+                    const post = await tm.getRepository(Post)
+                                         .createQueryBuilder("post")
+                                         .where("id = :id", {id: input.postId}).getOne();
+                    
+                    if(input.vote == 1) {
+                        if(post.points == -1) {
+                            await tm.createQueryBuilder()
+                                    .update(Post)
+                                    .set({ points: () => "points+2"})
+                                    .where("id = :id", {id: post.id})
+                                    .execute();
+                        }
+                        else {
+                            await tm.createQueryBuilder()
+                            .update(Post)
+                            .set({ points: () => "points+1"})
+                            .where("id = :id", {id: post.id})
+                            .execute();
+                        }
+                    }
+                    else {
+                        if(post.points == 1) {
+                            await tm.createQueryBuilder()
+                                    .update(Post)
+                                    .set({ points: () => "points-2"})
+                                    .where("id = :id", {id: post.id})
+                                    .execute();
+                        }
+                        else {
+                            await tm.createQueryBuilder()
+                                    .update(Post)
+                                    .set({ points: () => "points-1"})
+                                    .where("id = :id", {id: post.id})
+                                    .execute();
+                        }
+                    }   
+                })
+
+                return true;
+            }
+        }
+    }    
 }
