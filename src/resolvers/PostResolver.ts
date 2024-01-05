@@ -1,11 +1,12 @@
 import { myContext } from "../context";
 import { Post } from "../entities/Post";
-import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root, UseMiddleware } from "type-graphql";
+import { Arg, Ctx, FieldResolver, Int, Mutation, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { ORMConfig } from "../data-source";
 import { UpdateResult } from "typeorm";
 import { PaginationInput, PostInput, PostsOutput } from "../utils/postInput";
 import { isAuth } from "../utils/isAuthMiddleware";
 import { User } from "../entities/User";
+import { Vote } from "../entities/Vote";
 
 @Resolver(Post)
 export class PostResolver {
@@ -121,6 +122,25 @@ export class PostResolver {
         }
         catch { return false; }
         return true;
+    }
+
+    @FieldResolver(() => Int, {nullable: true})
+    async voteStatus(
+        @Root() post: Post,
+        @Ctx() { req }: myContext,
+    ): Promise<number | null> {
+
+        // search for a existing vote - if present, return the value of the vote as voteStatus field
+        const existingVote = await ORMConfig.getRepository(Vote).createQueryBuilder("vote")
+                                   .where("vote.post = :postId and vote.user = :userId", {postId: post.id, userId: req.session.userId})
+                                   .getOne();
+        
+        // execute() simply returns an object with created fields on the spot, not actual vote entity
+        // getOne() will return actual entity object
+        if(existingVote == null) 
+            return null;
+        else 
+            return existingVote.vote;
     }
 
 }

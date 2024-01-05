@@ -30,6 +30,9 @@ export class Post extends BaseEntity {
     @Field(() => Int)
     points: number;
 
+    @Field(() => Int, {nullable: true})
+    voteStatus: number | null;
+
     @CreateDateColumn()
     @Field(() => String)
     createdAt: Date;

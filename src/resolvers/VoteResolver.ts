@@ -19,8 +19,8 @@ export class VoteInput {
 @Resolver(Vote)
 export class VoteResolver {
 
-    @Mutation(() => Boolean)
-    @UseMiddleware(isAuth)
+    @Mutation(() => Post, { nullable: true})
+    @UseMiddleware(isAuth) 
     async vote(
         @Arg('input') input: VoteInput, 
         @Ctx() {req}: myContext
@@ -74,10 +74,21 @@ export class VoteResolver {
          
             })
         
-            return true;
+            const updatedPost = await ORMConfig.getRepository(Post)
+                                               .createQueryBuilder("post")
+                                               .select()
+                                               .where("id = :id", {id: input.postId})
+                                               .getOne();
+
+            updatedPost.author = await ORMConfig.createQueryBuilder()
+                                                .relation(Post, "author")
+                                                .of(input.postId)
+                                                .loadOne();
+            
+            return updatedPost;
         }
         else {
-            if(existingVote.vote == input.vote) return false;
+            if(existingVote.vote == input.vote) return null;
             else {
                 
                 await ORMConfig.transaction( async (tm) => {
@@ -125,7 +136,18 @@ export class VoteResolver {
                     }   
                 })
 
-                return true;
+                const updatedPost = await ORMConfig.getRepository(Post)
+                                               .createQueryBuilder("post")
+                                               .select()
+                                               .where("id = :id", {id: input.postId})
+                                               .getOne();
+
+                updatedPost.author = await ORMConfig.createQueryBuilder()
+                                                .relation(Post, "author")
+                                                .of(input.postId)
+                                                .loadOne();
+
+                return updatedPost;
             }
         }
     }    
