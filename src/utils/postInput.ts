@@ -21,6 +21,18 @@ export class PaginationInput {
     skip!: number;
 }
 
+@InputType()
+export class UpdatePostInput {
+    @Field(() => Int)
+    id!: number
+
+    @Field(() => String)
+    text: string
+
+    @Field(() => String)
+    title: string
+}
+
 @ObjectType()
 export class PostsOutput {
     

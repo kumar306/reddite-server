@@ -3,7 +3,7 @@ import { Post } from "../entities/Post";
 import { Arg, Ctx, FieldResolver, Int, Mutation, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { ORMConfig } from "../data-source";
 import { UpdateResult } from "typeorm";
-import { PaginationInput, PostInput, PostsOutput } from "../utils/postInput";
+import { PaginationInput, PostInput, PostsOutput, UpdatePostInput } from "../utils/postInput";
 import { isAuth } from "../utils/isAuthMiddleware";
 import { User } from "../entities/User";
 import { Vote } from "../entities/Vote";
@@ -83,7 +83,7 @@ export class PostResolver {
         ):Promise<Post> {
 
         // should attach post with user by his user id - insert a record into post table
-        //then add user - session.userId using relation() of createQueryBuilder using created post id
+        // then add user - session.userId using relation() of createQueryBuilder using created post id
         const post = (await ORMConfig.createQueryBuilder()
                         .insert()
                         .into(Post)
@@ -109,10 +109,10 @@ export class PostResolver {
     //update post - update by id, change title field
     @Mutation(() => Post, { nullable: true})
     async updatePost(
-    @Arg("id") id:number, 
-    @Arg("title") title: string): Promise<Post | null> {
+    @Arg('input') input:UpdatePostInput,
+    @Ctx() {req}: myContext): Promise<Post | null> {
         //check if post is there
-        const post = await ORMConfig.manager.findOne(Post, {where: {id}});
+        const post = await ORMConfig.manager.findOne(Post, {where: {id: input.id}});
         if(!post) return null;
         
         // update using active record method
@@ -122,13 +122,16 @@ export class PostResolver {
 
         // update using query builder of typeORM 
         // --------------------------------
-        const response = await ORMConfig.createQueryBuilder()
+        await ORMConfig.createQueryBuilder()
                                 .update(Post)
-                                .set({title})
-                                .where("id = :id", {id})
-                                .returning(['id','title','text','author'])
+                                .set({title: input.title, text: input.text})
+                                .where("id = :id", {id: input.id})
                                 .execute();
-        return response.raw[0] as Post;
+        const updatedPost = await ORMConfig.getRepository(Post).createQueryBuilder("post")
+                                           .where("id = :id", {id: input.id}).getOne();
+        await ORMConfig.createQueryBuilder().relation(Post,"author").of(input.id).set(req.session.userId);
+        updatedPost.author = await ORMConfig.createQueryBuilder().relation(Post,"author").of(input.id).loadOne();
+        return updatedPost;
     }
 
     //delete post
@@ -155,7 +158,7 @@ export class PostResolver {
             await ORMConfig.createQueryBuilder().delete().from(Post).where("id = :postId", {postId: deletePostId}).execute();
         }
         catch { return null; }
-        
+
         return deletePostId;
     }
 
