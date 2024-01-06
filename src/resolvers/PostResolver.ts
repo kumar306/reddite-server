@@ -50,9 +50,29 @@ export class PostResolver {
 
     //get a specific post
     @Query(() => Post, { nullable: true})
-    getPost(@Arg("id") id:number):Promise<Post | null> {
-        return ORMConfig.manager.findOne(Post, {where: {id}});
+    @UseMiddleware(isAuth)
+    async getPost(
+        @Arg("getPostId") getPostId:number,
+        @Ctx() {req}: myContext):Promise<Post | null> {
+        
+        // fetch the post by given post id
+        // load the author for fetched post and return entire post
+
+        const post = await ORMConfig.getRepository(Post).createQueryBuilder("post")
+                                    .where("id = :id", {id: getPostId})
+                                    .getOne();
+        if(post == null) return null;
+
+        await ORMConfig.createQueryBuilder().relation(Post, "author")
+                                     .of(getPostId).set(req.session.userId);
+        
+        post.author = await ORMConfig.createQueryBuilder()
+                                     .relation(Post,"author")
+                                     .of(getPostId)
+                                     .loadOne();
+        return post;
     }
+
     
     //create post
     @Mutation(() => Post)
@@ -112,16 +132,31 @@ export class PostResolver {
     }
 
     //delete post
-    @Mutation(() => Boolean)
+    @Mutation(() => Int, {nullable: true})
     async deletePost(
-        @Arg("id") id:number,
-    ): Promise<Boolean> {
+        @Arg("deletePostId") deletePostId:number,
+        @Ctx() {req}: myContext
+    ): Promise<number | null> {
         try {
-            // await ORMConfig.manager.delete(Post, {id});  -- active record method of typeORM
-            await ORMConfig.createQueryBuilder().delete().from(Post).where("id = :id", {id}).execute();
+            
+            // a user can only delete post which he has created
+            // if deleting post, it will have rows in vote table and on deletion, foreign key constraint gets violated
+            // so remove all rows containing this post id in vote table and then delete the post from post table
+            
+            const post:Post = await ORMConfig.getRepository(Post).createQueryBuilder()
+                                        .where("id = :id", {id: deletePostId}).getOne();
+            if(post == null) return null;
+            await ORMConfig.createQueryBuilder().relation(Post, "author").of(post.id).set(req.session.userId);
+            post.author = await ORMConfig.createQueryBuilder().relation(Post, "author").of(post.id).loadOne();
+
+            if(post.author.id != req.session.userId) return null;
+            
+            await ORMConfig.createQueryBuilder().delete().from(Vote).where("post = :postId", {postId: deletePostId}).execute();
+            await ORMConfig.createQueryBuilder().delete().from(Post).where("id = :postId", {postId: deletePostId}).execute();
         }
-        catch { return false; }
-        return true;
+        catch { return null; }
+        
+        return deletePostId;
     }
 
     @FieldResolver(() => Int, {nullable: true})

@@ -21,7 +21,7 @@ export class Post extends BaseEntity {
 
     @ManyToOne(() => User, (user) => user.posts)
     @Field(() => User)
-    author: number;
+    author: User;
 
     @OneToMany(() => Vote, (vote) => vote.post)
     votes: Vote[];
