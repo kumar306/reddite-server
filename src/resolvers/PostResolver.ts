@@ -101,8 +101,6 @@ export class PostResolver {
                                      .of(post.id)
                                      .loadOne();
           
-        console.log(post);
-
         return post;
     }
 
@@ -165,20 +163,25 @@ export class PostResolver {
     @FieldResolver(() => Int, {nullable: true})
     async voteStatus(
         @Root() post: Post,
-        @Ctx() { req }: myContext,
+        @Ctx() { req, voteLoader }: myContext,
     ): Promise<number | null> {
 
-        // search for a existing vote - if present, return the value of the vote as voteStatus field
-        const existingVote = await ORMConfig.getRepository(Vote).createQueryBuilder("vote")
-                                   .where("vote.post = :postId and vote.user = :userId", {postId: post.id, userId: req.session.userId})
-                                   .getOne();
+        // // search for a existing vote - if present, return the value of the vote as voteStatus field
+        // const existingVote = await ORMConfig.getRepository(Vote).createQueryBuilder("vote")
+        //                            .where("vote.post = :postId and vote.user = :userId", {postId: post.id, userId: req.session.userId})
+        //                            .getOne();
         
-        // execute() simply returns an object with created fields on the spot, not actual vote entity
-        // getOne() will return actual entity object
-        if(existingVote == null) 
-            return null;
-        else 
-            return existingVote.vote;
+        // // execute() simply returns an object with created fields on the spot, not actual vote entity
+        // // getOne() will return actual entity object
+        // if(existingVote == null) 
+        //     return null;
+        // else 
+        //     return existingVote.vote;
+
+        // using dataloader to batch the queries
+        const vote = await voteLoader.load({postId: post.id, userId:req.session.userId});
+        return vote == null? null : vote.vote;
+        
     }
 
 }

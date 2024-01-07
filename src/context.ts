@@ -1,5 +1,6 @@
 import { RedisClientType } from "@redis/client";
 import { Request, Response } from "express";
+import { voteLoader } from "./utils/createVoteLoader";
 
 interface CustomRequestProperties {
     session: { userId: number }
@@ -8,5 +9,6 @@ interface CustomRequestProperties {
 export type myContext = {
     req: Request & CustomRequestProperties,
     res: Response,
-    redis: RedisClientType
+    redis: RedisClientType,
+    voteLoader: ReturnType<typeof voteLoader>
 };

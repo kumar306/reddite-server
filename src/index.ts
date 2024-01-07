@@ -11,6 +11,7 @@ import RedisStore from "connect-redis";
 import 'dotenv/config';
 import { ORMConfig } from "./data-source";
 import { VoteResolver } from "./resolvers/VoteResolver";
+import { voteLoader } from "./utils/createVoteLoader";
 
 const main = async() => {
      //db init
@@ -55,7 +56,7 @@ const main = async() => {
             resolvers: [PostResolver, UserResolver, VoteResolver],
             validate: false,
         }),
-        context: ({req, res}) => ({ redis:redisClient, req, res }),
+        context: ({req, res}) => ({ redis:redisClient, req, res, voteLoader: voteLoader() }),
     })
     await apolloServer.start();
     apolloServer.applyMiddleware({ 
